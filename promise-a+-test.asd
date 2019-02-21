@@ -1,5 +1,6 @@
 (defsystem promise-a+-test
   :depends-on (:fiveam
+               :bordeaux-threads
                :promise-a+)
   :pathname "t/"
   :perform (test-op (o c)

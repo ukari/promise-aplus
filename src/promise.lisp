@@ -9,7 +9,8 @@
                 :de
                 :queue-empty-p)
   (:export :promise
-           :then))
+           :then
+           :finish))
 
 (in-package :promise-a+.promise)
 #|
@@ -20,6 +21,8 @@
           ((eq action :onrejected) (yield :rejected)))
     (error "promise states changing error")))
 |#
+
+(defparameter *promise-thread* nil)
 
 (defmethod init-state ()
   :pending)
@@ -37,9 +40,12 @@
    (value :initform nil
           :accessor value
           :type any)
-   (callbacks :initform (make-queue)
-              :accessor callbacks
-              :type queue)))
+   (fulfilled-callbacks :initform (make-queue)
+                        :accessor fulfilled-callbacks
+                        :type queue)
+   (rejected-callbacks :initform (make-queue)
+                       :accessor rejected-callbacks
+                       :type queue)))
 
 (defmethod promise ((resolver function))
   (let ((promise (make-instance 'promise :status (init-state))))
@@ -47,18 +53,21 @@
     promise))
 
 (defmethod then ((self promise) resolve reject)
-  (let ((promise (make-instance 'promise :status (init-state))))
-    (if (eq :pending (status self))
-        (en (callbacks self)
-            (lambda () (then-inner self promise resolve reject)))
-        (then-inner self promise resolve reject))
+  (let ((promise (make-instance 'promise :status (init-state)))
+        (status (status self)))
+    (cond ((eq status :pending)
+           (progn (en (fulfilled-callbacks self)
+                      (lambda () (then-inner self promise resolve)))
+                  (en (rejected-callbacks self)
+                      (lambda () (then-inner self promise reject)))))
+          ((eq status :fulfilled) (then-inner self promise resolve))
+          ((eq status :rejected) (then-inner self promise reject)))
     promise))
 
-(defmethod then-inner ((self promise) (next promise) resolve reject)
+(defmethod then-inner ((self promise) (next promise) callback)
   (let ((status (status self))
         (value (value self)))
-    (cond ((and (eq status :fulfilled) (eq (type-of resolve) 'function)) (error-handler next resolve value))
-          ((and (eq status :rejected) (eq (type-of reject) 'function)) (error-handler next reject value))
+    (cond ((eq (type-of callback) 'function) (error-handler next callback value))
           ((eq status :fulfilled) (funcall (resolved next) value))
           ((eq status :rejected) (funcall (rejected next) value)))))
 
@@ -73,17 +82,22 @@
     (:no-error (value) (funcall (resolved self) value))))
 
 (defmethod callback ((self promise))
-  (let ((callbacks (callbacks self)))
+  (let* ((status (status self))
+        (callbacks (cond ((eq status :fulfilled) (fulfilled-callbacks self))
+                         ((eq status :rejected) (rejected-callbacks self)))))
     (loop until (queue-empty-p callbacks)
        do (funcall (de callbacks)))))
 
 (defmethod resolved ((self promise))
   (lambda (&optional value)
-    (print "resolved") (print self)
     (action self :onfulfilled value)))
 
 (defmethod rejected ((self promise))
   (lambda (&optional value)
-    (print "rejected") (print self)
     (action self :onrejected value)))
 
+(defmethod finish ((self promise) &optional (mode :throw))
+  (cond ((eq mode :throw) (then self nil (lambda (reason) (error reason))))
+        ((eq mode :warning) (then self nil (lambda (reason) (format t "Unhandled promise rejection (promise: ~A): ~A" self reason))))
+        ((eq mode :silence)))
+  nil)
