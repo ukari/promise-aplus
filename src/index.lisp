@@ -4,10 +4,8 @@
   (:use :cl)
   (:import-from :promise-a+.promise
                 :promise
-                :then
-                :finish)
+                :then)
   (:export :promise
-           :then
-           :finish))
+           :then))
 
 (in-package promise-a+)

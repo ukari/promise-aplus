@@ -2,15 +2,18 @@
 
 (defpackage promise-a+.promise
   (:use :cl :cl-generator)
-  (:import-from :miso-queue
+  (:import-from :aria.structure.miso-queue
                 :queue
                 :make-queue
                 :en
                 :de
                 :queue-empty-p)
+  (:import-from :aria.asynchronous.scheduler
+                :gen-scheduler
+	        :add
+	        :end)
   (:export :promise
-           :then
-           :finish))
+           :then))
 
 (in-package :promise-a+.promise)
 #|
@@ -22,7 +25,9 @@
     (error "promise states changing error")))
 |#
 
-(defparameter *promise-thread* nil)
+(let ((scheduler (gen-scheduler)))
+  (defun get-scheduler ()
+    scheduler))
 
 (defmethod init-state ()
   :pending)
@@ -83,8 +88,8 @@
 
 (defmethod callback ((self promise))
   (let* ((status (status self))
-        (callbacks (cond ((eq status :fulfilled) (fulfilled-callbacks self))
-                         ((eq status :rejected) (rejected-callbacks self)))))
+         (callbacks (cond ((eq status :fulfilled) (fulfilled-callbacks self))
+                          ((eq status :rejected) (rejected-callbacks self)))))
     (loop until (queue-empty-p callbacks)
        do (funcall (de callbacks)))))
 
@@ -95,9 +100,3 @@
 (defmethod rejected ((self promise))
   (lambda (&optional value)
     (action self :onrejected value)))
-
-(defmethod finish ((self promise) &optional (mode :throw))
-  (cond ((eq mode :throw) (then self nil (lambda (reason) (error reason))))
-        ((eq mode :warning) (then self nil (lambda (reason) (format t "Unhandled promise rejection (promise: ~A): ~A" self reason))))
-        ((eq mode :silence)))
-  nil)

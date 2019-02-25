@@ -1,5 +1,6 @@
 (defsystem promise-a+
-  :depends-on (:cl-generator :miso-queue)
+  :depends-on (:cl-generator
+               :aria)
   :pathname "src/"
   :in-order-to ((test-op (test-op "promise-a+-test")))
   :components
