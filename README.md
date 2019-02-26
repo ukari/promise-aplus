@@ -40,3 +40,15 @@ And the method `finish` has been provided by this library.
 - `(defmethod promisep ((self promise)))`
 - `(defmethod promisep (self))`
 - `(defmethod finish ((self promise) &key (mode :throw)))`
+
+## run unit tests
+``` lisp
+(require 'promise-a+-test)
+(promise-a+-test:run-all-tests)
+```
+
+or
+
+``` lisp
+(asdf:test-system 'promise-a+)
+```
