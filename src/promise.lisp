@@ -93,9 +93,15 @@
   (lambda (&optional value)
     (action self :onrejected value)))
 
+(defmethod format-warning ((self promise) reason)
+  (format nil "Unhandled promise rejection (promise: ~A): ~A" self reason))
+
+(defmethod format-illegal-mode (mode)
+  (format nil "unacceptable mode ~A in promise finish" mode))
+
 (defmethod finish ((self promise) &key (mode :throw))
   (cond ((eq mode :throw) (then-inner self nil (lambda (reason) (error (format nil "~A" reason))) t))
-        ((eq mode :warning) (then self nil (lambda (reason) (format t "Unhandled promise rejection (promise: ~A): ~A" self reason))))
+        ((eq mode :warning) (then self nil (lambda (reason) (print (format-warning self reason)))))
         ((eq mode :silence) self)
-        (t (error (format nil "unacceptable mode ~A in promise finish" mode))))
+        (t (error (format-illegal-mode mode))))
   nil)
