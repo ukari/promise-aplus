@@ -116,7 +116,7 @@
       (error (reason) (setf value2 reason)))
     (is (equal value1 (simple-condition-format-control value2)))))
 
-(test async-finish-mode-throw
+(test finish-mode-throw-async
   (let* ((semaphore (make-semaphore))
          (th (make-thread (lambda () (wait-on-semaphore semaphore))))
          (p (promise (lambda (re rj) (declare (ignorable re)) (make-thread (lambda () (funcall rj "err") (signal-semaphore semaphore))))))
@@ -147,4 +147,8 @@
     (is (equal "" (get-output-stream-string s)))))
 
 (test finish-mode-illegal
-  )
+  (let* ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj 0))))
+        (value))
+    (handler-case (finish p :mode :just-a-illegal-mode-argument)
+      (error (reason) (setf value reason)))
+    (is (equal (format-illegal-mode :just-a-illegal-mode-argument) (simple-condition-format-control value)))))
