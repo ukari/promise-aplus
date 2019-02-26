@@ -11,6 +11,7 @@
                 :de
                 :queue-empty-p)
   (:export :promise
+           :promise-p
            :then
            :finish))
 
@@ -120,6 +121,11 @@
   (lambda (&optional value)
     (unless (passing self value)
       (action self :onrejected value))))
+
+(defmethod promisep ((self promise))
+  t)
+
+(defmethod promisep (self))
 
 (defmethod format-warning ((self promise) reason)
   (format nil "Unhandled promise rejection (promise: ~A): ~A" self reason))

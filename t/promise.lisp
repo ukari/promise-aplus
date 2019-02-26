@@ -12,6 +12,7 @@
                 :top)
   (:import-from :promise-a+.promise
                 :promise
+                :promisep
                 :then
                 :finish
                 ::format-warning
@@ -24,7 +25,7 @@
 (in-suite promise)
 
 (test make-promise
-  (is (subtypep (class-of (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0)))) 'promise)))
+  (is (promisep (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0))))))
 
 (test promise-resolved
   (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0))))

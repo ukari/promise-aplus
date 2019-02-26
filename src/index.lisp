@@ -4,9 +4,11 @@
   (:use :cl)
   (:import-from :promise-a+.promise
                 :promise
+                :promisep
                 :then
                 :finish)
   (:export :promise
+           :promisep
            :then
            :finish))
 
