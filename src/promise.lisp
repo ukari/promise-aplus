@@ -2,7 +2,9 @@
 
 (defpackage promise-a+.promise
   (:use :cl)
-  (:import-from :aria.structure.miso-queue
+  (:import-from :atomics
+                :cas)
+  (:import-from :aria.structure.mimo-queue
                 :queue
                 :make-queue
                 :en
@@ -35,7 +37,10 @@
                         :type queue)
    (rejected-callbacks :initform (make-queue)
                        :accessor rejected-callbacks
-                       :type queue)))
+                       :type queue)
+   (lock :initform :free
+         :accessor lock
+         :type keyword)))
 
 (defmethod promise ((resolver function))
   (let ((promise (make-instance 'promise :status (init-state))))
@@ -47,6 +52,7 @@
   (then-inner self resolve reject))
 
 (defmethod then-inner ((self promise) resolve reject &optional danger)
+  (loop while (not (cas (slot-value self 'lock) :free :using)))
   (let ((promise (make-instance 'promise :status (init-state)))
         (status (status self)))
     (cond ((eq status :pending)
@@ -56,6 +62,8 @@
                       (lambda () (then-run self promise reject danger)))))
           ((eq status :fulfilled) (then-run self promise resolve))
           ((eq status :rejected) (then-run self promise reject danger)))
+    (assert (eq (lock self) :using))
+    (cas (slot-value self 'lock) :using :free)
     promise))
 
 (defmethod then-run ((self promise) (next promise) callback &optional danger)
@@ -69,9 +77,11 @@
           ((eq status :rejected) (funcall (rejected next) value)))))
 
 (defmethod action ((self promise) (action symbol) value)
+  (loop while (not (cas (slot-value self 'lock) :free :using)))
   (setf (status self) (next-state (status self) action))
   (setf (value self) value)
-  (callback self))
+  (callback self)
+  (cas (slot-value self 'lock) :using :free))
 
 (defmethod error-handler ((self promise) (closure function) value)
   (handler-case (funcall closure value)

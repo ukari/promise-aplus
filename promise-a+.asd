@@ -1,6 +1,7 @@
 (defsystem promise-a+
   :depends-on (:cl-generator
-               :aria)
+               :aria
+               :atomics)
   :pathname "src/"
   :in-order-to ((test-op (test-op "promise-a+-test")))
   :components
