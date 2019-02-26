@@ -39,7 +39,8 @@
 
 (defmethod promise ((resolver function))
   (let ((promise (make-instance 'promise :status (init-state))))
-    (funcall resolver (resolved promise) (rejected promise))
+    (handler-case (funcall resolver (resolved promise) (rejected promise))
+      (error (reason) (funcall (rejected promise) reason)))
     promise))
 
 (defmethod then ((self promise) resolve reject)
