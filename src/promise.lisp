@@ -69,12 +69,26 @@
 (defmethod then-run ((self promise) (next promise) callback &optional danger)
   (let ((status (status self))
         (value (value self)))
-    (cond ((eq (type-of callback) 'function)
+    (cond ((functionp callback)
            (if danger
                (funcall callback value)
                (error-handler next callback value)))
           ((eq status :fulfilled) (funcall (resolved next) value))
           ((eq status :rejected) (funcall (rejected next) value)))))
+
+(defmethod passing ((self promise) (pass promise))
+  (let ((status (status pass)))
+    (cond ((eq status :pending)
+           (then pass
+                 (lambda (x) (action self :onfulfilled x))
+                 (lambda (x) (action self :onrejected x))))
+          ((eq status :fulfilled)
+           (action self :onfulfilled (value pass)))
+          ((eq status :rejected)
+           (action self :onrejected (value pass))))
+    t))
+
+(defmethod passing ((self promise) pass))
 
 (defmethod action ((self promise) (action symbol) value)
   (if (eq (status self) :pending)
@@ -99,11 +113,13 @@
 
 (defmethod resolved ((self promise))
   (lambda (&optional value)
-    (action self :onfulfilled value)))
+    (unless (passing self value)
+      (action self :onfulfilled value))))
 
 (defmethod rejected ((self promise))
   (lambda (&optional value)
-    (action self :onrejected value)))
+    (unless (passing self value)
+      (action self :onrejected value))))
 
 (defmethod format-warning ((self promise) reason)
   (format nil "Unhandled promise rejection (promise: ~A): ~A" self reason))
