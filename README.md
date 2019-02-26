@@ -16,6 +16,11 @@ I think it would be **not** wise to do the following things for the purpose of m
 - only call related user code in the macro task queue
 - only call a promise then's onfulfilled or onrejected in the micro task queue
 
+In my option, what the [3. Notes 3.1.](https://promisesaplus.com/#point-67) claims is also for the purpose of automaticaly detect a then after a promise, so `onFulfilled` and `onRejected` in this library won't be execute asynchronously.
+
+### 3. Notes 3.1.
+>  this requirement ensures that onFulfilled and onRejected execute asynchronously
+
 Instead, add a error catcher like `finish` to the tail of then chain would make it safe. For example
 ``` lisp
 (defmethod finish ((self promise) &optional (mode :throw))
