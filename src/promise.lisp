@@ -77,11 +77,13 @@
           ((eq status :rejected) (funcall (rejected next) value)))))
 
 (defmethod action ((self promise) (action symbol) value)
-  (loop while (not (cas (slot-value self 'lock) :free :using)))
-  (setf (status self) (next-state (status self) action))
-  (setf (value self) value)
-  (callback self)
-  (cas (slot-value self 'lock) :using :free))
+  (if (eq (status self) :pending)
+      (progn
+        (loop while (not (cas (slot-value self 'lock) :free :using)))
+        (setf (status self) (next-state (status self) action))
+        (setf (value self) value)
+        (callback self)
+        (cas (slot-value self 'lock) :using :free))))
 
 (defmethod error-handler ((self promise) (closure function) value)
   (handler-case (funcall closure value)

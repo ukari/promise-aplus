@@ -41,6 +41,24 @@
     (join-thread th0)
     (is (eq value 0))))
 
+(test promise-resolved-and-throw
+  (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0) (error "err"))))
+        (value))
+    (then p (lambda (x) (setf value x)) nil)
+    (is (eq value 0))))
+
+(test promise-resolved-double
+  (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0) (funcall re 1))))
+        (value))
+    (then p (lambda (x) (setf value x)) nil)
+    (is (eq value 0))))
+
+(test promise-resolved-and-rejected
+  (let ((p (promise (lambda (re rj) (funcall re 0) (funcall rj "err"))))
+        (value))
+    (then p (lambda (x) (setf value x)) nil)
+    (is (eq value 0))))
+
 (test promise-rejected-async
   (let* ((semaphore (make-semaphore))
          (th0 (make-thread (lambda () (wait-on-semaphore semaphore))))
@@ -62,6 +80,24 @@
     (then p nil (lambda (x) (setf value x)))
     (is (eq value 0))))
 
+(test promise-rejected-and-throw
+  (let ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj "err") (error "another"))))
+        (value))
+    (then p nil (lambda (x) (setf value x)))
+    (is (equal value "err"))))
+
+(test promise-rejected-double
+  (let ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj "err") (funcall rj "another"))))
+        (value))
+    (then p nil (lambda (x) (setf value x)))
+    (is (equal value "err"))))
+
+(test promise-rejected-and-resolved
+  (let ((p (promise (lambda (re rj) (funcall rj "err") (funcall re 0))))
+        (value))
+    (then p nil (lambda (x) (setf value x)))
+    (is (equal value "err"))))
+
 (test promise-resolved-then
   (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0))))
         (value1)
@@ -75,6 +111,17 @@
     (is (eq value2 10))
     (is (eq value3 110))))
 
+
+(test promise-resolved-then-route
+  (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0))))
+        (valuel)
+        (valuer))
+    (then p
+          (lambda (x) (setf valuel x))
+          (lambda (x) (setf valuer x)))
+    (is (eq valuel 0))
+    (is (eq valuer nil))))
+
 (test promise-rejected-then
   (let ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj 0))))
         (value1)
@@ -87,6 +134,16 @@
     (is (eq value1 1))
     (is (eq value2 10))
     (is (eq value3 110))))
+
+(test promise-rejected-then-route
+  (let ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj "err"))))
+        (valuel)
+        (valuer))
+    (then p
+          (lambda (x) (setf valuel x))
+          (lambda (x) (setf valuer x)))
+    (is (equal valuel nil))
+    (is (equal valuer "err"))))
 
 (test promise-onfulfilled-nil
   (let ((p (promise (lambda (re rj) (declare (ignorable rj)) (funcall re 0))))
@@ -128,22 +185,22 @@
     (is (equal value1 (simple-condition-format-control value2)))))
 
 (test finish-mode-warning
-  (let* ((p1 (promise (lambda (re rj) (declare (ignorable re)) (funcall rj "err"))))
+  (let ((p1 (promise (lambda (re rj) (declare (ignorable re)) (funcall rj "err"))))
          (s1 (make-string-output-stream))
-         (*standard-output* s1)
          (s2 (make-string-output-stream))
          (value)
         (p2))
-    (finish (setf p2 (then p1 nil (lambda (reason) (setf value reason) (error reason)))) :mode :warning)
-    (let ((*standard-output* s2))
-      (print (format-warning p2 value)))
+    (let ((*standard-output* s1))
+      (finish (setf p2 (then p1 nil (lambda (reason) (setf value reason) (error reason)))) :mode :warning)
+      (let ((*standard-output* s2))
+        (print (format-warning p2 value))))
     (is (equal (get-output-stream-string s2) (get-output-stream-string s1)))))
 
 (test finish-mode-silence
-  (let* ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj 0))))
-        (s (make-string-output-stream))
-        (*standard-output* s))
-    (finish p :mode :silence)
+  (let ((p (promise (lambda (re rj) (declare (ignorable re)) (funcall rj 0))))
+        (s (make-string-output-stream)))
+    (let ((*standard-output* s))
+      (finish p :mode :silence))
     (is (equal "" (get-output-stream-string s)))))
 
 (test finish-mode-illegal
