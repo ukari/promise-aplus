@@ -32,3 +32,11 @@ Instead, add a error catcher like `finish` to the tail of then chain would make 
 ```
 
 And the method `finish` has been provided by this library.
+
+## provides
+- `(defclass promise ())`
+- `(defmethod promise ((resolver function)))`
+- `(defmethod then ((self promise) resolve reject))`
+- `(defmethod promisep ((self promise)))`
+- `(defmethod promisep (self))`
+- `(defmethod finish ((self promise) &key (mode :throw)))`
