@@ -1,33 +1,18 @@
 (in-package :cl)
 
 (defpackage promise-a+.promise
-  (:use :cl :cl-generator)
+  (:use :cl)
   (:import-from :aria.structure.miso-queue
                 :queue
                 :make-queue
                 :en
                 :de
                 :queue-empty-p)
-  (:import-from :aria.asynchronous.scheduler
-                :gen-scheduler
-	        :add
-	        :end)
   (:export :promise
-           :then))
+           :then
+           :finish))
 
 (in-package :promise-a+.promise)
-#|
-(defmethod* state ()
-  "a simple state machine for promise status"
-  (let ((action (yield :pending)))
-    (cond ((eq action :onfulfilled) (yield :fulfilled))
-          ((eq action :onrejected) (yield :rejected)))
-    (error "promise states changing error")))
-|#
-
-(let ((scheduler (gen-scheduler)))
-  (defun get-scheduler ()
-    scheduler))
 
 (defmethod init-state ()
   :pending)
@@ -58,21 +43,27 @@
     promise))
 
 (defmethod then ((self promise) resolve reject)
+  (then-inner self resolve reject))
+
+(defmethod then-inner ((self promise) resolve reject &optional danger)
   (let ((promise (make-instance 'promise :status (init-state)))
         (status (status self)))
     (cond ((eq status :pending)
            (progn (en (fulfilled-callbacks self)
-                      (lambda () (then-inner self promise resolve)))
+                      (lambda () (then-run self promise resolve)))
                   (en (rejected-callbacks self)
-                      (lambda () (then-inner self promise reject)))))
-          ((eq status :fulfilled) (then-inner self promise resolve))
-          ((eq status :rejected) (then-inner self promise reject)))
+                      (lambda () (then-run self promise reject danger)))))
+          ((eq status :fulfilled) (then-run self promise resolve))
+          ((eq status :rejected) (then-run self promise reject danger)))
     promise))
 
-(defmethod then-inner ((self promise) (next promise) callback)
+(defmethod then-run ((self promise) (next promise) callback &optional danger)
   (let ((status (status self))
         (value (value self)))
-    (cond ((eq (type-of callback) 'function) (error-handler next callback value))
+    (cond ((eq (type-of callback) 'function)
+           (if danger
+               (funcall callback value)
+               (error-handler next callback value)))
           ((eq status :fulfilled) (funcall (resolved next) value))
           ((eq status :rejected) (funcall (rejected next) value)))))
 
@@ -100,3 +91,10 @@
 (defmethod rejected ((self promise))
   (lambda (&optional value)
     (action self :onrejected value)))
+
+(defmethod finish ((self promise) &key (mode :throw))
+  (cond ((eq mode :throw) (then-inner self nil (lambda (reason) (error (format nil "~A" reason))) t))
+        ((eq mode :warning) (then self nil (lambda (reason) (format t "Unhandled promise rejection (promise: ~A): ~A" self reason))))
+        ((eq mode :silence) self)
+        (t (error (format nil "unacceptable mode ~A in promise finish" mode))))
+  nil)
