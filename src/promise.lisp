@@ -9,7 +9,7 @@
                 :make-queue
                 :en
                 :de
-                :queue-empty-p)
+                :emptyp)
   (:export :promise
            :promise-p
            :then
@@ -109,7 +109,7 @@
   (let* ((status (status self))
          (callbacks (cond ((eq status :fulfilled) (fulfilled-callbacks self))
                           ((eq status :rejected) (rejected-callbacks self)))))
-    (loop until (queue-empty-p callbacks)
+    (loop until (emptyp callbacks)
        do (funcall (de callbacks)))))
 
 (defmethod resolved ((self promise))
