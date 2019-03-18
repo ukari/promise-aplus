@@ -6,7 +6,7 @@
                 :cas)
   (:import-from :aria.structure.mimo-queue
                 :queue
-                :make-queue
+                :mimo-queue
                 :en
                 :de
                 :emptyp)
@@ -33,10 +33,10 @@
    (value :initform nil
           :accessor value
           :type any)
-   (fulfilled-callbacks :initform (make-queue)
+   (fulfilled-callbacks :initform (mimo-queue)
                         :accessor fulfilled-callbacks
                         :type queue)
-   (rejected-callbacks :initform (make-queue)
+   (rejected-callbacks :initform (mimo-queue)
                        :accessor rejected-callbacks
                        :type queue)
    (lock :initform :free
